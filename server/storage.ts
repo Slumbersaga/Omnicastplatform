@@ -467,5 +467,194 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Initialize with either memory storage or database storage
-export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
+// Initialize database storage
+export const storage = new DatabaseStorage();
+
+// Create demo data for the app
+async function seedInitialData() {
+  // Check if there's existing data
+  const existingUsers = await db.select().from(users);
+  if (existingUsers.length > 0) {
+    console.log('Database already has data, skipping seed');
+    return;
+  }
+
+  try {
+    // Create demo user
+    const [user] = await db.insert(users).values({
+      username: "demouser",
+      password: "password123",
+      email: "demo@example.com",
+      avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+    }).returning();
+    
+    console.log('Created demo user:', user.id);
+    
+    // Add platform connections
+    const [ytPlatform] = await db.insert(platforms).values({
+      userId: user.id,
+      platformName: "youtube",
+      isConnected: true,
+      accessToken: "demo_token",
+      refreshToken: "demo_refresh",
+      tokenExpiry: new Date(Date.now() + 3600000),
+      platformUserId: "youtube_user_123",
+      platformUsername: "Demo Channel",
+      additionalData: {}
+    }).returning();
+    
+    const [fbPlatform] = await db.insert(platforms).values({
+      userId: user.id,
+      platformName: "facebook",
+      isConnected: true,
+      accessToken: "demo_token",
+      refreshToken: "demo_refresh",
+      tokenExpiry: new Date(Date.now() + 3600000),
+      platformUserId: "facebook_user_456",
+      platformUsername: "Demo Page",
+      additionalData: {}
+    }).returning();
+    
+    await db.insert(platforms).values({
+      userId: user.id,
+      platformName: "twitter",
+      isConnected: false,
+      platformUserId: "",
+      platformUsername: "",
+      additionalData: {}
+    }).returning();
+    
+    const [igPlatform] = await db.insert(platforms).values({
+      userId: user.id,
+      platformName: "instagram",
+      isConnected: true,
+      accessToken: "demo_token",
+      refreshToken: "demo_refresh",
+      tokenExpiry: new Date(Date.now() + 3600000),
+      platformUserId: "instagram_user_789",
+      platformUsername: "demogram",
+      additionalData: {}
+    }).returning();
+    
+    console.log('Created platform connections');
+    
+    // Add some demo uploads
+    const [upload1] = await db.insert(uploads).values({
+      userId: user.id,
+      title: "How to Use OmniCast Platform",
+      description: "A complete tutorial on using the OmniCast platform for multi-platform uploads",
+      tags: "tutorial,omnicast,howto",
+      fileName: "omnicast-tutorial.mp4",
+      fileSize: 24500000,
+      duration: 154,
+      thumbnailUrl: "https://images.unsplash.com/photo-1526328828355-69b01701ca6a?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=80&q=80",
+      visibility: "public"
+    }).returning();
+    
+    const [upload2] = await db.insert(uploads).values({
+      userId: user.id,
+      title: "Product Announcement - Summer 2023",
+      description: "Exciting new features coming this summer!",
+      tags: "product,announcement,summer",
+      fileName: "summer-announcement.mp4",
+      fileSize: 35200000,
+      duration: 312,
+      thumbnailUrl: "https://images.unsplash.com/photo-1591115765373-5207764f72e7?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=80&q=80",
+      visibility: "public"
+    }).returning();
+    
+    const [upload3] = await db.insert(uploads).values({
+      userId: user.id,
+      title: "Weekly Team Update - May 29",
+      description: "Internal update for the team",
+      tags: "internal,update,team",
+      fileName: "team-update-may29.mp4",
+      fileSize: 89400000,
+      duration: 585,
+      thumbnailUrl: "https://images.unsplash.com/photo-1576585269693-6c7136aa7373?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=80&q=80",
+      visibility: "private"
+    }).returning();
+    
+    console.log('Created demo uploads');
+    
+    // Add platform statuses for uploads
+    await Promise.all([
+      // Upload 1 platforms
+      db.insert(uploadPlatforms).values({
+        uploadId: upload1.id,
+        platformId: ytPlatform.id,
+        status: "completed",
+        platformVideoId: "yt123456789",
+        platformVideoUrl: "https://youtube.com/watch?v=yt123456789",
+        uploadProgress: 100,
+        platformSettings: { playlist: "Tutorials" },
+        completedAt: new Date()
+      }),
+      
+      db.insert(uploadPlatforms).values({
+        uploadId: upload1.id,
+        platformId: fbPlatform.id,
+        status: "completed",
+        platformVideoId: "fb987654321",
+        platformVideoUrl: "https://facebook.com/watch?v=fb987654321",
+        uploadProgress: 100,
+        platformSettings: { postAs: "Page" },
+        completedAt: new Date()
+      }),
+      
+      // Upload 2 platforms
+      db.insert(uploadPlatforms).values({
+        uploadId: upload2.id,
+        platformId: ytPlatform.id,
+        status: "completed",
+        platformVideoId: "yt567890123",
+        platformVideoUrl: "https://youtube.com/watch?v=yt567890123",
+        uploadProgress: 100,
+        platformSettings: { playlist: "Announcements" },
+        completedAt: new Date()
+      }),
+      
+      db.insert(uploadPlatforms).values({
+        uploadId: upload2.id,
+        platformId: fbPlatform.id,
+        status: "completed",
+        platformVideoId: "fb234567890",
+        platformVideoUrl: "https://facebook.com/watch?v=fb234567890",
+        uploadProgress: 100,
+        platformSettings: { postAs: "Page" },
+        completedAt: new Date()
+      }),
+      
+      db.insert(uploadPlatforms).values({
+        uploadId: upload2.id,
+        platformId: igPlatform.id,
+        status: "completed",
+        platformVideoId: "ig345678901",
+        platformVideoUrl: "https://instagram.com/p/ig345678901",
+        uploadProgress: 100,
+        platformSettings: { shareToStories: true },
+        completedAt: new Date()
+      }),
+      
+      // Upload 3 platforms
+      db.insert(uploadPlatforms).values({
+        uploadId: upload3.id,
+        platformId: ytPlatform.id,
+        status: "completed",
+        platformVideoId: "yt678901234",
+        platformVideoUrl: "https://youtube.com/watch?v=yt678901234",
+        uploadProgress: 100,
+        platformSettings: { visibility: "private" },
+        completedAt: new Date()
+      })
+    ]);
+    
+    console.log('Created upload platform statuses');
+    console.log('Seed data creation completed successfully');
+  } catch (error) {
+    console.error('Error seeding data:', error);
+  }
+}
+
+// Run seed on startup
+seedInitialData();
