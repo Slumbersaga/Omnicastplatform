@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ConnectedPlatforms() {
   const { toast } = useToast();
-  const { data: platforms, isLoading } = useQuery({
+  const { data: platforms = [], isLoading } = useQuery<Platform[]>({
     queryKey: ['/api/platforms'],
   });
 

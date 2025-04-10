@@ -2,16 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Upload } from "@/types";
+import { Upload, Platform } from "@/types";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { getPlatformIcon } from "@/lib/platformIcons";
 
 export default function RecentUploads() {
   const [, setLocation] = useLocation();
-  const { data: uploads, isLoading } = useQuery({
+  const { data: uploads = [], isLoading: uploadsLoading } = useQuery<Upload[]>({
     queryKey: ['/api/uploads'],
   });
+  
+  const { data: platforms = [], isLoading: platformsLoading } = useQuery<Platform[]>({
+    queryKey: ['/api/platforms'],
+  });
+  
+  const isLoading = uploadsLoading || platformsLoading;
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -76,7 +82,9 @@ export default function RecentUploads() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-1">
                       {upload.platforms?.map((platform) => {
-                        const platformInfo = getPlatformIcon(platform.platformId.toString());
+                        // Get the platform name using the platforms API data
+                        const platformData = platforms.find((p: Platform) => p.id === platform.platformId);
+                        const platformInfo = getPlatformIcon(platformData?.platformName || 'unknown');
                         return (
                           <div key={platform.id} title={`${platform.status}`} className="w-5 h-5">
                             {platformInfo.icon}
