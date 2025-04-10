@@ -12,6 +12,8 @@ import {
   type UploadPlatform,
   type InsertUploadPlatform
 } from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // User operations
@@ -349,4 +351,121 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  // Platform operations
+  async getPlatformsByUserId(userId: number): Promise<Platform[]> {
+    return db.select().from(platforms).where(eq(platforms.userId, userId));
+  }
+
+  async getPlatform(id: number): Promise<Platform | undefined> {
+    const [platform] = await db.select().from(platforms).where(eq(platforms.id, id));
+    return platform || undefined;
+  }
+
+  async createPlatform(platform: InsertPlatform): Promise<Platform> {
+    const [newPlatform] = await db.insert(platforms).values(platform).returning();
+    return newPlatform;
+  }
+
+  async updatePlatform(id: number, platformUpdate: Partial<InsertPlatform>): Promise<Platform> {
+    const [updatedPlatform] = await db
+      .update(platforms)
+      .set(platformUpdate)
+      .where(eq(platforms.id, id))
+      .returning();
+    
+    if (!updatedPlatform) {
+      throw new Error(`Platform with ID ${id} not found`);
+    }
+    
+    return updatedPlatform;
+  }
+
+  async deletePlatform(id: number): Promise<boolean> {
+    const result = await db.delete(platforms).where(eq(platforms.id, id));
+    return result.count > 0;
+  }
+
+  // Upload operations
+  async getUploadsByUserId(userId: number): Promise<Upload[]> {
+    return db
+      .select()
+      .from(uploads)
+      .where(eq(uploads.userId, userId))
+      .orderBy(uploads.uploadedAt);
+  }
+
+  async getUpload(id: number): Promise<Upload | undefined> {
+    const [upload] = await db.select().from(uploads).where(eq(uploads.id, id));
+    return upload || undefined;
+  }
+
+  async createUpload(upload: InsertUpload): Promise<Upload> {
+    const [newUpload] = await db.insert(uploads).values(upload).returning();
+    return newUpload;
+  }
+
+  // UploadPlatform operations
+  async getUploadPlatformsByUploadId(uploadId: number): Promise<UploadPlatform[]> {
+    return db
+      .select()
+      .from(uploadPlatforms)
+      .where(eq(uploadPlatforms.uploadId, uploadId));
+  }
+
+  async getUploadPlatform(id: number): Promise<UploadPlatform | undefined> {
+    const [uploadPlatform] = await db
+      .select()
+      .from(uploadPlatforms)
+      .where(eq(uploadPlatforms.id, id));
+    return uploadPlatform || undefined;
+  }
+
+  async createUploadPlatform(uploadPlatform: InsertUploadPlatform): Promise<UploadPlatform> {
+    const [newUploadPlatform] = await db
+      .insert(uploadPlatforms)
+      .values(uploadPlatform)
+      .returning();
+    return newUploadPlatform;
+  }
+
+  async updateUploadPlatform(id: number, uploadPlatformUpdate: Partial<InsertUploadPlatform>): Promise<UploadPlatform> {
+    // If status is completed, set completedAt to now
+    if (uploadPlatformUpdate.status === 'completed') {
+      uploadPlatformUpdate = { ...uploadPlatformUpdate, completedAt: new Date() };
+    }
+    
+    const [updatedUploadPlatform] = await db
+      .update(uploadPlatforms)
+      .set(uploadPlatformUpdate)
+      .where(eq(uploadPlatforms.id, id))
+      .returning();
+    
+    if (!updatedUploadPlatform) {
+      throw new Error(`UploadPlatform with ID ${id} not found`);
+    }
+    
+    return updatedUploadPlatform;
+  }
+}
+
+// Initialize with either memory storage or database storage
+export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
